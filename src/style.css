@@ -311,6 +311,11 @@ body.modal::before { content: ""; position: fixed; inset: 0; z-index: 9; backgro
 .cards b { font-size: 16px; }
 .cards span { font-size: 13.5px; color: var(--muted); }
 .cards em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--accent); }
+.cards strong { justify-self: start; margin: 4px 0 2px; padding: 3px 10px; border-radius: 99px; background: var(--soft); color: var(--accent); font-size: 12.5px; font-weight: 800; }
+.me { display: flex; align-items: center; gap: 18px; }
+.me img { flex: none; width: 96px; height: 96px; border-radius: 50%; object-fit: cover; box-shadow: var(--shadow); }
+.me h2 { margin-top: 0; }
+@media (max-width: 560px) { .me img { width: 72px; height: 72px; } }
 #sheet.resume { width: min(760px, calc(100vw - 24px)); }
 @media print { /* the CV view prints cleanly */
   body.modal::before, #stage, #hud, #panel, #tags, #toast, #pops, #banner, #boostfx, #pad, .x, .casenav { display: none !important; }

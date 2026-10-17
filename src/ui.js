@@ -16,13 +16,6 @@ export function createUI({ site, world, actions }) {
   let sheetOpen = false, menuOpen = false, toastTimer, currentAuto = null;
   const { profile } = site;
 
-  /* ---------- text & brand ---------- */
-  document.title = `${profile.name} · Portfolio`;
-  $('#brand').textContent = $('.hudbrand').textContent = profile.name;
-  for (const m of document.querySelectorAll('.mono')) m.textContent = profile.name.trim()[0]?.toUpperCase() ?? '•';
-  $('#headline').textContent = profile.headline;
-  $('#intro').textContent = profile.intro;
-
   /* ---------- what each place shows ---------- */
   const contacts = () => [
     profile.cv && { label: 'Download CV', url: profile.cv, primary: true },
@@ -52,8 +45,8 @@ export function createUI({ site, world, actions }) {
     const timeline = (rows) => `<ul class="timeline">${rows.map((r) => `<li><b>${esc(r.what)}</b><span>${esc(r.where)}${r.when ? ` · ${esc(r.when)}` : ''}</span>${r.note ? `<i>${esc(r.note)}</i>` : ''}</li>`).join('')}</ul>`;
     return `<section>
       <small class="kicker">About${profile.location ? ` · ${esc(profile.location)}` : ''}</small>
-      <h2>${esc(profile.name)}</h2>
-      <p class="lede">${esc(profile.headline)}</p>
+      <div class="me">${profile.photo ? `<img src="${esc(profile.photo)}" alt="${esc(profile.name)}" width="96" height="96" />` : ''}<div><h2>${esc(profile.name)}</h2>
+      <p class="lede">${esc(profile.headline)}</p></div></div>
       <p>${esc(profile.summary)}</p>
       ${profile.experience.length ? `<h3>Experience</h3>${timeline(profile.experience)}` : ''}
       <h3>Education</h3>${timeline(profile.education)}
@@ -73,7 +66,7 @@ export function createUI({ site, world, actions }) {
       <small class="kicker">Gallery</small>
       <h2>Projects</h2>
       <p>${ranked.length} projects, from my own startup to tools I built for founders. Pick one to read the case study.</p>
-      <ul class="cards">${ranked.map((p) => `<li><button data-project="${esc(p.id)}"><b>${esc(p.title)}</b><span>${esc(p.tagline)}</span><em>${esc(p.category)} · ${esc(p.period)}</em></button></li>`).join('')}</ul>
+      <ul class="cards">${ranked.map((p) => `<li><button data-project="${esc(p.id)}"><b>${esc(p.title)}</b><span>${esc(p.tagline)}</span>${p.stat ? `<strong>${esc(p.stat)}</strong>` : ''}<em>${esc(p.category)} · ${esc(p.period)}</em></button></li>`).join('')}</ul>
     </section>`;
   }
   function contactHTML() {

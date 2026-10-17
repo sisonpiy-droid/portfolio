@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import './style.css';
 import { profile, projects, skills, places } from './content.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';

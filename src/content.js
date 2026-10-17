@@ -6,6 +6,7 @@ export const profile = {
   title: "Founder's Office · Strategic Execution",
   location: 'Gurugram, India',
   headline: "Founder's office operator. I turn strategy into execution.",
+  photo: '/me.jpg',
   intro: '3+ years in early-stage startups, venture investing and wealth advisory, plus a startup I founded. Drive through my village, or browse it like a CV.',
   summary: 'Founder’s office and early-stage operator with 3+ years across startups, venture investing and wealth advisory. I have supported ₹50L+ capital discussions, secured ₹10L+ in allocations, scaled an investor network 9x, and founded LoyalTap, taking it from merchant interviews to a live pilot. Now at MESA School of Business, I also build the tools myself: you can drive past ten of them here.',
   email: 'sisonpiy@gmail.com',
@@ -43,6 +44,7 @@ export const projects = [
     tagline: 'Loyalty rewards for neighbourhood shops, verified from a photo of the bill.',
     category: 'My startup · Founder & Business Lead',
     period: 'Jul 2024 – Dec 2025',
+    stat: '60+ users across 4 pilot businesses',
     problem: 'Offline small businesses lose repeat customers: their POS systems are fragmented and nothing ties a purchase back to a customer, so loyalty programmes are built for big chains only.',
     built: [
       'Ran 25+ discovery conversations with merchants across F&B and retail to validate incentive economics and adoption barriers.',
@@ -60,6 +62,7 @@ export const projects = [
     tagline: 'Which investors should a first-time founder contact this week, and what public evidence says so?',
     category: 'Fundraising tool · AI + data',
     period: 'Oct 2026',
+    stat: '82 of 82 investors refreshed, zero errors',
     context: 'MESA final evaluation, built for a case founder raising a seed round',
     problem: 'A first-time founder raising a seed round tracks around 80 investors in a spreadsheet and cannot tell who is active right now. Public signals are scattered, undated or simply wrong.',
     built: [
@@ -78,6 +81,7 @@ export const projects = [
     tagline: 'A voice agent answers every call, qualifies the lead and books the consultation.',
     category: 'Voice AI · Ops automation',
     period: 'Oct 2026',
+    stat: 'Answers 24/7 in English and Hindi',
     context: 'MESA case: an interior design studio',
     problem: 'An interior design studio was missing calls and spending designer time on enquiries that were never going to convert.',
     built: [
@@ -96,6 +100,7 @@ export const projects = [
     tagline: 'CV screening that is fast, explainable and blind to names.',
     category: 'Hiring tool · AI',
     period: 'Sep 2026',
+    stat: 'Blind scoring on a 100-point rubric',
     context: 'MESA case: a founder hiring product managers',
     problem: 'A founder hiring PMs and senior PMs had more CVs than time, and wanted screening that was consistent, explainable and not swayed by names.',
     built: [
@@ -114,6 +119,7 @@ export const projects = [
     tagline: 'My personal AI chief of staff, running 24/7 for free.',
     category: 'AI agent · Personal ops',
     period: 'Sep – Oct 2026',
+    stat: 'Runs 24/7 at zero hosting cost',
     problem: 'Deadlines, announcements and calendar changes on my school’s learning portal were easy to miss, and my priorities lived in too many places.',
     built: [
       'Checks the portal every 5 minutes from a scheduled cloud function (Supabase pg_cron + Edge Function) with an encrypted session, so my laptop can be off.',
@@ -130,6 +136,7 @@ export const projects = [
     tagline: 'Create anyone. Talk to anyone. AI personalities that remember you.',
     category: 'Consumer AI product',
     period: 'Sep – Oct 2026',
+    stat: '20 personalities that remember you',
     problem: 'AI characters forget you between conversations. Muse is built around relationship continuity: personalities that remember.',
     built: [
       'Built from a product spec in phases: foundation, core experience, conversation and memory.',
@@ -147,6 +154,7 @@ export const projects = [
     tagline: 'Two people, one QR code, one thing you will both watch.',
     category: 'Consumer app',
     period: 'Sep 2026',
+    stat: '30-title shortlist, built in a day',
     problem: 'Couples spend longer choosing what to watch than watching it.',
     built: [
       'Each partner sets their mood privately; Claude turns both profiles into one search brief and the app pulls a 30-title shortlist.',
@@ -163,6 +171,7 @@ export const projects = [
     tagline: 'A note on Telegram becomes a sourced LinkedIn draft in your own voice.',
     category: 'AI workflow',
     period: 'Sep 2026',
+    stat: 'Drafts cite news from the last 45 days',
     context: 'MESA case: a founder who wanted to post more',
     problem: 'A founder had ideas worth posting but no time to research and draft them.',
     built: [
@@ -180,6 +189,7 @@ export const projects = [
     tagline: 'A conversation with someone you’ve lost, someone far away, or someone you’ve made up.',
     category: 'AI product · MVP',
     period: 'Sep 2026',
+    stat: 'MVP shipped to real testers',
     problem: 'An experiment in emotionally meaningful AI conversation, shipped quickly to real testers.',
     built: [
       'A React app with a serverless proxy to Anthropic or Gemini, so the model key never reaches the browser.',
@@ -196,6 +206,7 @@ export const projects = [
     tagline: 'Plan together. Decide together. Group trips without the endless group chat.',
     category: 'Consumer web app',
     period: 'Sep 2026',
+    stat: 'Working prototype in two days',
     problem: 'Group trips stall in the chat: budgets, dates and dislikes clash, the loudest voice wins, and nobody owns the decision.',
     built: [
       'A coordinator creates the trip and shares one link; each friend privately sets their budget, dates, the kind of place they want, their dislikes and their top priority.',
