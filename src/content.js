@@ -12,6 +12,8 @@ export const profile = {
   email: 'sisonpiy@gmail.com',
   linkedin: 'https://www.linkedin.com/in/piyush-sisondia',
   github: 'https://github.com/sisonpiy-droid',
+  url: 'https://piyush-sisondia.vercel.app', // the site's own address: change it here when the custom domain is live
+  elsewhere: ['https://piyushsisondia.cv'], // other pages about you, so search engines tie them together
   cv: '', // TODO: put your latest CV in /public (e.g. public/cv.pdf) and write '/cv.pdf' here
   education: [
     { what: 'Postgraduate programme', where: 'MESA School of Business', when: 'Class of 2027' },

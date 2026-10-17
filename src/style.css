@@ -25,6 +25,7 @@ body.night {
 }
 
 * { box-sizing: border-box; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* read by screen readers and search engines, not shown */
 html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); }
 body { font: 400 15px/1.5 Manrope, system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); -webkit-tap-highlight-color: transparent; }
 button { font: inherit; color: inherit; cursor: pointer; }
