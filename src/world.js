@@ -249,6 +249,13 @@ export function createWorld(places, opts = {}) {
   }
   const at = (S, d) => S.s[Math.min(S.s.length - 1, Math.max(0, Math.round((d / S.len) * (S.s.length - 1))))];
   const yawOf = (q) => Math.atan2(q.tan.x, q.tan.z);
+  // `at` snaps to the nearest sample, which makes a moving car hop; this blends the two samples either side
+  const atSmooth = (S, d) => {
+    const f = Math.min(S.s.length - 1, Math.max(0, (d / S.len) * (S.s.length - 1))), i = Math.floor(f), k = f - i, a = S.s[i], b = S.s[Math.min(S.s.length - 1, i + 1)];
+    const mix = (u, v) => ({ x: u.x + (v.x - u.x) * k, z: u.z + (v.z - u.z) * k });
+    const tan = mix(a.tan, b.tan), tl = Math.hypot(tan.x, tan.z) || 1;
+    return { p: mix(a.p, b.p), n: mix(a.n, b.n), tan: { x: tan.x / tl, z: tan.z / tl } };
+  };
   function strip(S, off, width, y, material, uvScale = 8, from = 0, to = Infinity) {
     const list = S.s.filter((q) => q.d >= from && q.d <= to);
     const pos = [], nor = [], uv = [], idx = [];
@@ -1218,11 +1225,11 @@ export function createWorld(places, opts = {}) {
     return { outer, inner, x };
   });
 
-  // traffic: two cars circle the roundabout, one shuttles along the entrance road, one along the east road
+  // traffic: one car drives the entrance road and one the east road, braking at the end, making a U-turn and coming back
   const traffic = [
-    { S: entrance.S, s: 30, dir: 1, v: 8, color: 0xf5c542 },
-    { S: east.S, s: 30, dir: 1, v: 7, color: 0x3fae7a },
-  ].map((c, i) => { const car = makeCar(c.color, { kind: i ? 'suv' : 'sedan' }); scene.add(car.group); return { ...car, ...c, x: 0, z: 0, r: 1.5 }; });
+    { S: entrance.S, s: 30, dir: 1, v: 9, cruise: 9, color: 0xf5c542 },
+    { S: east.S, s: 30, dir: 1, v: 8, cruise: 8, color: 0x3fae7a },
+  ].map((c, i) => { const car = makeCar(c.color, { kind: i ? 'suv' : 'sedan' }); scene.add(car.group); return { ...car, ...c, x: 0, z: 0, r: 1.5, turn: null, sc: 0, yaw: null, steer: 0 }; });
 
   // drift and boost effects: tyre smoke, skid marks on the ground, a glowing flame trail
   const pool = (n, make) => Array.from({ length: n }, () => { const m = make(); m.visible = false; scene.add(m); return { m, life: 0, max: 1, vx: 0, vz: 0 }; });
@@ -1482,21 +1489,39 @@ export function createWorld(places, opts = {}) {
     }
     sparkGeo.attributes.position.needsUpdate = true;
 
-    // traffic
+    // traffic: cruise, slow for the road's end and for a car ahead, U-turn between the lanes, drive back
+    const LANE = 1.8, END_NEAR = 6, END_FAR = 14;
     for (const c of traffic) {
-      if (c.loop) {
-        c.th += (c.dir * c.v * dt) / c.lane;
-        c.x = Math.cos(c.th) * c.lane; c.z = Math.sin(c.th) * c.lane;
-        c.group.rotation.y = -c.th;
-      } else {
-        c.s += c.dir * c.v * dt;
-        if (c.s > c.S.len - 6) c.dir = -1; else if (c.s < 14) c.dir = 1;
-        const q = at(c.S, c.s), off = 1.8 * c.dir;
-        c.x = q.p.x + q.n.x * off; c.z = q.p.z + q.n.z * off;
-        c.group.rotation.y = yawOf(q) + (c.dir > 0 ? 0 : Math.PI);
+      const toEnd = c.dir > 0 ? c.S.len - END_NEAR - c.s : c.s - END_FAR;
+      let target = c.turn != null ? 3.2 : toEnd < 16 ? Math.max(3.2, Math.min(c.cruise, 2.6 + toEnd * 0.7)) : c.cruise;
+      if (c.yaw != null) { // keep a gap to whatever is in front, the player included
+        const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw), rx = P.x - c.x, rz = P.z - c.z, ahead = rx * fx + rz * fz;
+        if (ahead > 0 && ahead < 11 && Math.abs(rx * fz - rz * fx) < 2.4) target = Math.min(target, Math.max(0, (ahead - 5.5) * 1.1));
       }
+      c.v += (target - c.v) * Math.min(1, dt * (target < c.v ? 3 : 1.5)); // brake harder than it accelerates
+      if (c.turn == null) {
+        c.s += c.dir * c.v * dt;
+        if ((c.dir > 0 ? c.S.len - END_NEAR - c.s : c.s - END_FAR) <= 0) { c.turn = 0; c.sc = c.s; }
+      }
+      let yaw;
+      if (c.turn == null) {
+        const q = atSmooth(c.S, c.s), off = LANE * c.dir;
+        c.x = q.p.x + q.n.x * off; c.z = q.p.z + q.n.z * off;
+        yaw = yawOf(q) + (c.dir > 0 ? 0 : Math.PI);
+      } else { // half a circle between the two lanes, centred on the road's own line
+        c.turn += (c.v * dt) / LANE;
+        const q = atSmooth(c.S, c.sc), ph = Math.min(c.turn, Math.PI), sn = Math.sin(ph), cs = Math.cos(ph);
+        c.x = q.p.x + q.tan.x * c.dir * LANE * sn + q.n.x * c.dir * LANE * cs;
+        c.z = q.p.z + q.tan.z * c.dir * LANE * sn + q.n.z * c.dir * LANE * cs;
+        yaw = Math.atan2(c.dir * (q.tan.x * cs - q.n.x * sn), c.dir * (q.tan.z * cs - q.n.z * sn));
+        if (c.turn >= Math.PI) { c.turn = null; c.dir = -c.dir; c.s = c.sc; }
+      }
+      const rate = c.yaw == null ? 0 : wrapPi(yaw - c.yaw) / Math.max(dt, 1e-3);
+      c.steer += (Math.max(-1, Math.min(1, rate * 0.5)) - c.steer) * Math.min(1, dt * 8); // the front wheels follow the turn
+      c.yaw = yaw;
+      c.group.rotation.y = yaw;
       c.group.position.set(c.x, ROAD_Y - 0.01, c.z);
-      carVisuals(c, c.v, 0, dt);
+      carVisuals(c, c.v, c.steer, dt);
     }
 
     // the train loops along its track

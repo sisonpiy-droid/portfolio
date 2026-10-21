@@ -5,12 +5,12 @@ export const list = (items, cls = 'bul') => `<ul class="${cls}">${items.map((i) 
 export function renderers(site) {
   const { profile } = site;
   const contacts = () => [
-    profile.cv && { label: 'Download CV', url: profile.cv, primary: true, download: true },
+    profile.cv && { label: 'View CV', url: profile.cv, primary: true },
     profile.email && { label: 'Email me', url: `mailto:${profile.email}` },
     profile.linkedin && { label: 'LinkedIn', url: profile.linkedin },
     profile.github && { label: 'GitHub', url: profile.github },
   ].filter(Boolean);
-  const buttons = (items) => (items.length ? `<p class="links">${items.map((l) => `<a class="${l.primary ? 'primary' : ''}" href="${esc(l.url)}"${l.download ? ' download' : ' target="_blank" rel="noopener"'}>${esc(l.label)}</a>`).join('')}</p>` : '');
+  const buttons = (items) => (items.length ? `<p class="links">${items.map((l) => `<a class="${l.primary ? 'primary' : ''}" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join('')}</p>` : '');
   const ranked = site.projects; // featured projects first
   const section = (title, body) => (body ? `<h3>${title}</h3>${body}` : '');
 

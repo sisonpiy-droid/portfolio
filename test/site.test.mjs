@@ -36,10 +36,10 @@ test('links: https only, and nothing private is published', () => {
   assert.doesNotMatch(text, /\+91|\b\d{10}\b/, 'a phone number is in the content');
 });
 
-test('CV button only exists when the PDF does', () => {
-  const has = existsSync(new URL('public/cv.pdf', root));
-  assert.equal(html.includes('href="/cv.pdf"'), has);
-  assert.equal(html.includes('data-open="resume"'), !has);
+test('the CV button opens the live CV site', () => {
+  assert.equal(profile.cv, 'https://piyushsisondia.cv');
+  assert.match(html, /<a class="btn" href="https:\/\/piyushsisondia\.cv" target="_blank" rel="noopener">View CV<\/a>/);
+  assert.match(html, /id="start"[^>]*>Explore my village</);
 });
 
 test('metadata: title, description, canonical, Open Graph', () => {

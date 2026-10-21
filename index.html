@@ -31,17 +31,16 @@
       <h1 id="headline" class="i" style="--i:1"></h1>
       <p id="intro" class="i" style="--i:2"></p>
       <div class="cta i" style="--i:3">
-        <button class="btn primary" data-open="projects">View projects</button>
+        <button id="start" class="btn primary" disabled>Explore my village</button>
         <!-- cv -->
       </div>
       <nav class="jump i" style="--i:3" aria-label="Jump to a section">
-        <button data-open="experience">Experience</button><button data-open="education">Education</button><button data-open="skills">Skills</button><button data-open="contact">Contact</button>
+        <button data-open="projects">Projects</button><button data-open="experience">Experience</button><button data-open="education">Education</button><button data-open="skills">Skills</button><button data-open="contact">Contact</button>
       </nav>
       <p id="quick" class="quick i" style="--i:3"></p>
       <div class="world i" style="--i:4">
-        <button id="start" class="btn" disabled>Explore the 3D village <kbd>Enter</kbd></button>
         <div id="loader" aria-live="polite">
-          <span id="loadtext">Loading the 3D village (optional) …</span>
+          <span id="loadtext">Loading the village (optional) …</span>
           <div class="track"><i></i>
             <svg class="loadcar" viewBox="0 0 40 20" aria-hidden="true"><rect x="2" y="6" width="36" height="9" rx="4" fill="#2f66d6" /><rect x="10" y="1" width="18" height="8" rx="3" fill="#8ec5f2" /><circle cx="10" cy="16" r="3.4" fill="#1b3263" /><circle cx="30" cy="16" r="3.4" fill="#1b3263" /></svg>
           </div>

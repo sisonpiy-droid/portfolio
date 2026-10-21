@@ -14,8 +14,7 @@ export const profile = {
   github: 'https://github.com/sisonpiy-droid',
   url: 'https://piyush-sisondia.vercel.app', // the site's own address: change it here when the custom domain is live
   elsewhere: ['https://piyushsisondia.cv'], // other pages about you, so search engines tie them together
-  // Drop your CV at public/cv.pdf and the Download CV button appears (the build checks the file exists; see vite.config.js).
-  cv: typeof __HAS_CV__ !== 'undefined' && __HAS_CV__ ? '/cv.pdf' : '',
+  cv: 'https://piyushsisondia.cv', // the CV button opens this page
   education: [
     { what: 'Postgraduate programme', where: 'MESA School of Business', when: 'Class of 2027' },
     { what: 'BBA, Marketing', where: 'Manipal Academy of Higher Education', when: '2019 – 2022', note: 'Grade 8.73 · Management Head of Conscendo, a national undergraduate fest (team of 12, judges and sponsors).' },

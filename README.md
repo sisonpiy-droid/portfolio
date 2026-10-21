@@ -2,7 +2,7 @@
 
 A portfolio you can read in ten seconds or drive through. Live at **https://piyush-sisondia.vercel.app**.
 
-The page leads with the content: a headline, **View projects**, **Download CV** (or **View CV**, see below), and shortcuts to Experience, Education, Skills and Contact. The drivable 3D village (Three.js) is an optional extra behind **Explore the 3D village**. Everything works without it.
+The page leads with a headline, **Explore my village** (the drivable 3D world, Three.js) and **View CV** (opens https://piyushsisondia.cv), plus shortcuts to Projects, Experience, Education, Skills and Contact. The village is optional: everything works without it.
 
 ## Run it
 
@@ -25,9 +25,9 @@ Everything on the site is in [`src/content.js`](src/content.js): profile, experi
 - **Links:** add a `Code` link only if the repo is public and a `Live app` link only if the app works. `npm run check:links` tells you.
 - **Screenshots:** put an optimised image in `public/projects/` and reference it in `images[]` with its width, height, alt text and caption.
 
-## Add your CV
+## The CV
 
-Copy your CV to **`public/cv.pdf`** and rebuild. The **Download CV** button appears automatically. Until the file exists, the build prints a warning and the button is **View CV**, which opens the whole portfolio as one page with **Print or save as PDF**. No file is ever invented, and no button points at a missing file.
+**View CV** opens https://piyushsisondia.cv in a new tab. Change `cv` in `src/content.js` to point somewhere else. The all-in-one printable page (Projects, Experience and the other shortcuts) has a **Print or save as PDF** button.
 
 ## Search, sharing and accessibility
 
