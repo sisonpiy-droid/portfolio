@@ -273,6 +273,7 @@ function tick(dt, now) {
     ui.toast(n === 1 ? 'Oops — street light down!' : `Street lights down: ${n}`);
   }
   if (ev.cones) sfx.cone();
+  if (ev.walkers) { shake = Math.max(shake, 0.6); sfx.hit(); P.speed *= 0.9; ui.toast('Whoa, mind the pedestrians!'); }
   sfx.drift(P.drift > 0.4 && Math.abs(P.slide) > 0.1 && Math.abs(P.speed) > 5 ? Math.min(1, Math.abs(P.slide) * 3) : 0); // tyres squeal while sliding
   sfx.boost(P.boost);
 

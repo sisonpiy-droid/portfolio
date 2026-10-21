@@ -1182,11 +1182,12 @@ export function createWorld(places, opts = {}) {
     return { g, body, legs };
   };
   const walkers = [];
+  let knocked = 0; // pedestrians hit during this frame
   const walkPath = (cx, cz, r, dir, th, v = 1.3) => walkers.push({ ...makeWalker(SHIRTS[walkers.length % SHIRTS.length]), cx, cz, r, dir, th, v, ph: rnd() * 6 });
   walkPath(0, 0, RB_R + SW * 0.55, 1, 0);
   stops.forEach((s, i) => walkPath(s.x, s.z, PLAZA_R + 1.7, i % 2 ? -1 : 1, i * 2, 1.1));
   walkPath(POND.x, POND.z, POND.r + 3, 1, 1, 1);
-  for (const w of walkers) scene.add(w.g);
+  for (const w of walkers) { w.g.rotation.order = 'YXZ'; w.fall = null; w.pop = null; scene.add(w.g); }
 
   const gulls = Array.from({ length: 8 }, () => {
     const g = new THREE.Group();
@@ -1225,11 +1226,19 @@ export function createWorld(places, opts = {}) {
     return { outer, inner, x };
   });
 
-  // traffic: one car drives the entrance road and one the east road, braking at the end, making a U-turn and coming back
-  const traffic = [
-    { S: entrance.S, s: 30, dir: 1, v: 9, cruise: 9, color: 0xf5c542 },
-    { S: east.S, s: 30, dir: 1, v: 8, cruise: 8, color: 0x3fae7a },
-  ].map((c, i) => { const car = makeCar(c.color, { kind: i ? 'suv' : 'sedan' }); scene.add(car.group); return { ...car, ...c, x: 0, z: 0, r: 1.5, turn: null, sc: 0, yaw: null, steer: 0 }; });
+  // traffic: cars arrive at the far end of a road, drive to the roundabout, U-turn, drive back and leave; then another car arrives.
+  // The pool holds six different cars; an idle one is picked at random each time, so the traffic never looks the same.
+  const LOOKS = [
+    { kind: 'sedan', color: 0xf5c542 }, { kind: 'suv', color: 0x3fae7a }, { kind: 'hatch', color: 0xd9534f },
+    { kind: 'van', color: 0xf1f3f6 }, { kind: 'sedan', color: 0x5b6b8c }, { kind: 'hatch', color: 0x8d5bd0 },
+  ];
+  const traffic = LOOKS.map((look) => {
+    const car = makeCar(look.color, { kind: look.kind });
+    car.group.visible = false;
+    scene.add(car.group);
+    return { ...car, active: false, S: null, s: 0, dir: -1, v: 0, cruise: 8, x: 0, z: -500, r: -2, turn: null, sc: 0, yaw: null, steer: 0, grow: 0, leaving: false };
+  });
+  const roads = [{ S: entrance.S, timer: 1.5, max: 2 }, { S: east.S, timer: 4, max: 1 }];
 
   // drift and boost effects: tyre smoke, skid marks on the ground, a glowing flame trail
   const pool = (n, make) => Array.from({ length: n }, () => { const m = make(); m.visible = false; scene.add(m); return { m, life: 0, max: 1, vx: 0, vz: 0 }; });
@@ -1489,20 +1498,40 @@ export function createWorld(places, opts = {}) {
     }
     sparkGeo.attributes.position.needsUpdate = true;
 
-    // traffic: cruise, slow for the road's end and for a car ahead, U-turn between the lanes, drive back
+    // traffic: a new car arrives now and then, cruises in, slows for the end, U-turns, drives out and is parked away
     const LANE = 1.8, END_NEAR = 6, END_FAR = 14;
+    for (const road of roads) {
+      road.timer -= dt;
+      if (road.timer > 0) continue;
+      const mine = traffic.filter((c) => c.active && c.S === road.S), free = traffic.filter((c) => !c.active);
+      const q = atSmooth(road.S, road.S.len - END_NEAR);
+      const clear = mine.length < road.max && free.length && mine.every((c) => c.dir > 0 || c.s < road.S.len - 32) && Math.hypot(P.x - q.p.x, P.z - q.p.z) > 30; // never pops in next to the player
+      if (!clear) { road.timer = 1; continue; }
+      const c = free[(Math.random() * free.length) | 0];
+      Object.assign(c, { active: true, S: road.S, s: road.S.len - END_NEAR, dir: -1, cruise: 7 + Math.random() * 3.5, turn: null, yaw: null, steer: 0, grow: 0, leaving: false, r: 1.5 });
+      c.v = c.cruise * 0.5;
+      c.group.visible = true;
+      road.timer = 4 + Math.random() * 7;
+    }
     for (const c of traffic) {
+      if (!c.active) continue;
       const toEnd = c.dir > 0 ? c.S.len - END_NEAR - c.s : c.s - END_FAR;
-      let target = c.turn != null ? 3.2 : toEnd < 16 ? Math.max(3.2, Math.min(c.cruise, 2.6 + toEnd * 0.7)) : c.cruise;
-      if (c.yaw != null) { // keep a gap to whatever is in front, the player included
-        const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw), rx = P.x - c.x, rz = P.z - c.z, ahead = rx * fx + rz * fz;
-        if (ahead > 0 && ahead < 11 && Math.abs(rx * fz - rz * fx) < 2.4) target = Math.min(target, Math.max(0, (ahead - 5.5) * 1.1));
+      let target = c.leaving || c.turn != null ? 3.2 : toEnd < 16 ? Math.max(3.2, Math.min(c.cruise, 2.6 + toEnd * 0.7)) : c.cruise;
+      if (c.yaw != null) { // keep a gap to whatever is in front: the player or another car
+        const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw);
+        for (const o of [P, ...traffic]) {
+          if (o === c || (o !== P && !o.active)) continue;
+          const rx = o.x - c.x, rz = o.z - c.z, ahead = rx * fx + rz * fz;
+          if (ahead > 0 && ahead < 11 && Math.abs(rx * fz - rz * fx) < 2.4) target = Math.min(target, Math.max(0, (ahead - 5.5) * 1.1));
+        }
       }
       c.v += (target - c.v) * Math.min(1, dt * (target < c.v ? 3 : 1.5)); // brake harder than it accelerates
       if (c.turn == null) {
-        c.s += c.dir * c.v * dt;
-        if ((c.dir > 0 ? c.S.len - END_NEAR - c.s : c.s - END_FAR) <= 0) { c.turn = 0; c.sc = c.s; }
+        c.s = Math.min(c.S.len - 1, c.s + c.dir * c.v * dt);
+        if (!c.leaving && toEnd - c.dir * c.v * dt <= 0) { if (c.dir > 0) c.leaving = true; else { c.turn = 0; c.sc = c.s; } }
       }
+      c.grow = c.leaving ? c.grow - dt / 0.6 : Math.min(1, c.grow + dt / 0.6); // pulls in and out of the plaza end instead of popping
+      if (c.leaving && c.grow <= 0) { Object.assign(c, { active: false, r: -2, x: 0, z: -500, v: 0, yaw: null }); c.group.visible = false; continue; }
       let yaw;
       if (c.turn == null) {
         const q = atSmooth(c.S, c.s), off = LANE * c.dir;
@@ -1521,6 +1550,7 @@ export function createWorld(places, opts = {}) {
       c.yaw = yaw;
       c.group.rotation.y = yaw;
       c.group.position.set(c.x, ROAD_Y - 0.01, c.z);
+      c.group.scale.setScalar(Math.max(0.001, c.grow * c.grow * (3 - 2 * c.grow)));
       carVisuals(c, c.v, c.steer, dt);
     }
 
@@ -1533,14 +1563,34 @@ export function createWorld(places, opts = {}) {
     });
 
     // pedestrians and birds
+    knocked = 0;
     for (const w of walkers) {
+      if (w.fall) { // hit by the car: thrown, tumbling, then lying still, then back on its feet
+        const f = w.fall, g = w.g;
+        f.t += dt;
+        if (!f.down) {
+          f.vy -= 18 * dt;
+          g.position.x += f.vx * dt; g.position.z += f.vz * dt; g.position.y += f.vy * dt;
+          g.rotation.x += f.spin * dt;
+          if (g.position.y <= 0.2 && f.vy < 0) { g.position.y = 0.2; g.rotation.x = f.spin > 0 ? Math.PI / 2 : -Math.PI / 2; f.down = true; f.t = 0; }
+        } else if (f.t > 2.6) { w.fall = null; w.pop = 0; g.rotation.x = 0; g.position.y = 0; w.body.position.y = 0; }
+        continue;
+      }
       w.th += (w.dir * w.v * dt) / w.r;
       w.g.position.set(w.cx + Math.cos(w.th) * w.r, 0, w.cz + Math.sin(w.th) * w.r);
       w.g.rotation.y = w.dir > 0 ? -w.th : Math.PI - w.th;
+      if (w.pop != null) { w.pop += dt; w.g.scale.setScalar(Math.min(1, w.pop / 0.4)); if (w.pop >= 0.4) w.pop = null; }
       const sw = Math.sin(time * 6 * w.v + w.ph);
       w.legs[0].rotation.x = sw * 0.55; w.legs[1].rotation.x = -sw * 0.55;
       w.body.position.y = Math.abs(sw) * 0.05;
       if (w.jump > 0) { w.jump -= dt; w.body.position.y += Math.sin((1 - w.jump / 0.55) * Math.PI) * 0.7; } // startled by the horn
+      const dx = w.g.position.x - P.x, dz = w.g.position.z - P.z;
+      if (Math.abs(P.speed) > 2.5 && dx * dx + dz * dz < 2.1) { // the car reached them
+        const sp = Math.abs(P.speed), dir = Math.sign(P.speed), d = Math.hypot(dx, dz) || 1;
+        w.fall = { t: 0, down: false, vx: Math.sin(P.h) * dir * sp * 0.75 + (dx / d) * 2, vz: Math.cos(P.h) * dir * sp * 0.75 + (dz / d) * 2, vy: 4.5 + sp * 0.2, spin: (Math.random() > 0.5 ? 1 : -1) * (6 + Math.random() * 3) };
+        w.g.scale.setScalar(1);
+        knocked++;
+      }
     }
     for (const b of gulls) {
       b.th += b.v * dt;
@@ -1587,7 +1637,7 @@ export function createWorld(places, opts = {}) {
       s.ring.scale.setScalar(1 + Math.sin(time * 4 + s.i) * (on ? 0.05 : 0.015));
       s.beacon.material.opacity = (s.found ? 0.07 : 0.2) + Math.sin(time * 2.4 + s.i) * 0.05;
     }
-    const events = { broken, cones: 0 };
+    const events = { broken, cones: 0, walkers: knocked };
 
     // cones: knocked into the air by the car, tumble, settle, then pop back to where they started
     dummy.rotation.order = 'YXZ';
