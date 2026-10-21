@@ -1,5 +1,6 @@
 import { LIMIT } from './world.js';
-import { esc, renderers } from './render.js';
+import { renderers } from './render.js';
+import { openSheet, closeSheet, isSheetOpen, lockPage } from './sheet.js';
 
 const $ = (s) => document.querySelector(s);
 const store = {
@@ -10,22 +11,12 @@ const store = {
 export function createUI({ site, world, actions }) {
   const stops = world.stops;
   const found = new Set(store.get('found', []));
-  const sheet = $('#sheet'), menu = $('#menu'), autoSheet = $('#auto'), toastEl = $('#toast'), promptEl = $('#prompt');
-  let sheetOpen = false, menuOpen = false, toastTimer, currentAuto = null;
+  const menu = $('#menu'), autoSheet = $('#auto'), toastEl = $('#toast'), promptEl = $('#prompt');
+  let menuOpen = false, toastTimer, currentAuto = null;
 
-  const { contacts, projectHTML, aboutHTML, skillsHTML, galleryHTML, contactHTML, resumeHTML, ranked } = renderers(site);
-  quickLinks();
+  const { aboutHTML, skillsHTML, galleryHTML, contactHTML } = renderers(site);
 
   const placeHTML = (s) => ({ about: aboutHTML, projects: galleryHTML, skills: skillsHTML, contact: contactHTML })[s.kind]();
-  function quickLinks() { // CV, email and LinkedIn straight from the intro panel
-    const c = contacts();
-    $('#quick').innerHTML = c.map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join('<span>·</span>');
-    $('#quick').hidden = !c.length;
-  }
-  setTimeout(() => { // the loader is a nicety: the world is already built
-    document.body.classList.add('ready');
-    $('#loadtext').textContent = 'All set. Enjoy the drive!';
-  }, 1500);
 
   /* ---------- progress ---------- */
   const dashHTML = () => stops.map((s) => `<i class="${found.has(s.label) ? 'f' : ''}"></i>`).join('');
@@ -67,26 +58,8 @@ export function createUI({ site, world, actions }) {
     if (text && promptEl.textContent !== text) promptEl.textContent = text;
   }
 
-  /* ---------- sheet (a place, or everything) ---------- */
-  function openSheet(html, cls = '') {
-    sheet.className = cls;
-    sheet.innerHTML = `<button class="x" aria-label="Close">×</button>${html}`;
-    sheet.hidden = false;
-    sheet.scrollTop = 0;
-    sheetOpen = true;
-    document.body.classList.add('modal');
-    sheet.querySelector('.x').focus();
-  }
+  /* ---------- places open in the shared content sheet (sheet.js) ---------- */
   const openPlace = (s) => openSheet(placeHTML(s));
-  const openResume = () => openSheet(resumeHTML(), 'resume');
-  sheet.addEventListener('click', (e) => {
-    if (e.target.closest('.x')) return close();
-    const byId = (id) => site.projects.find((p) => p.id === id);
-    const pick = e.target.closest('[data-project]'), next = e.target.closest('[data-next]'), go = e.target.closest('[data-go]');
-    if (pick) openSheet(projectHTML(byId(pick.dataset.project)));
-    else if (next) { const i = ranked.findIndex((p) => p.id === next.dataset.next); openSheet(projectHTML(ranked[(i + 1) % ranked.length])); }
-    else if (go) openSheet(galleryHTML());
-  });
 
   /* ---------- map (minimap + big map) ---------- */
   function drawMap(cv, { cx, cz, scale, P, target, big, rot }) {
@@ -139,7 +112,7 @@ export function createUI({ site, world, actions }) {
   /* ---------- menu ---------- */
   const tabs = menu.querySelectorAll('.tabs button'), panes = menu.querySelectorAll('.tab');
   function showTab(name) {
-    tabs.forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
+    tabs.forEach((b) => { b.classList.toggle('on', b.dataset.tab === name); b.setAttribute('aria-selected', b.dataset.tab === name); });
     panes.forEach((p) => (p.hidden = p.dataset.tab !== name));
   }
   tabs.forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
@@ -148,8 +121,8 @@ export function createUI({ site, world, actions }) {
     showTab(tab);
     menu.hidden = false;
     menuOpen = true;
-    document.body.classList.add('modal');
-    menu.querySelector('.x').focus();
+    lockPage(true);
+    menu.querySelector('.x').focus({ preventScroll: true });
   }
   $('#places').addEventListener('click', (e) => {
     const b = e.target.closest('button');
@@ -196,10 +169,10 @@ export function createUI({ site, world, actions }) {
   $('#optReset').addEventListener('click', () => { found.clear(); store.set('found', []); refreshProgress(); toast('Progress reset'); });
 
   function close() {
-    const was = sheetOpen || menuOpen || !autoSheet.hidden;
-    sheet.hidden = menu.hidden = autoSheet.hidden = true;
-    sheetOpen = menuOpen = false;
-    document.body.classList.remove('modal');
+    const was = isSheetOpen() || menuOpen || !autoSheet.hidden;
+    closeSheet();
+    menu.hidden = autoSheet.hidden = true;
+    if (menuOpen) { menuOpen = false; lockPage(false); }
     return was;
   }
 
@@ -238,7 +211,7 @@ export function createUI({ site, world, actions }) {
   }
 
   return {
-    openPlace, openResume, openMenu, openAuto, close, toast, prompt, markFound, isFound, frame, toggleNight,
-    blocking: () => sheetOpen || menuOpen,
+    openPlace, openMenu, openAuto, close, toast, prompt, markFound, isFound, frame, toggleNight,
+    blocking: () => isSheetOpen() || menuOpen,
   };
 }

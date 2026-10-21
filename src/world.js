@@ -38,7 +38,8 @@ export function createWorld(places, opts = {}) {
   const sunR = new THREE.Vector3().crossVectors(sunF, new THREE.Vector3(0, 1, 0)).normalize();
   const sunU = new THREE.Vector3().crossVectors(sunR, sunF).normalize();
   sun.castShadow = true;
-  sun.shadow.mapSize.set(3072, 3072);
+  const SHADOW = opts.shadowSize ?? 2048;
+  sun.shadow.mapSize.set(SHADOW, SHADOW);
   Object.assign(sun.shadow.camera, { left: -52, right: 52, top: 52, bottom: -52, near: 1, far: 170 });
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.05;
@@ -1355,7 +1356,7 @@ export function createWorld(places, opts = {}) {
     weather.t += (weather.on ? 1 - weather.t : -weather.t) * (1 - Math.exp(-1.5 * dt));
     applyLight();
     // the shadow map follows the camera, snapped to its texel grid so shadows do not shimmer as it moves
-    const texel = 104 / 3072;
+    const texel = 104 / SHADOW;
     sun.target.position.copy(sunR).multiplyScalar(Math.round(focus.dot(sunR) / texel) * texel)
       .addScaledVector(sunU, Math.round(focus.dot(sunU) / texel) * texel)
       .addScaledVector(sunF, focus.dot(sunF));
@@ -1608,7 +1609,6 @@ export function createWorld(places, opts = {}) {
     park: { x: -28, z: 48, free: bayFree, total: 20, label: 'Car park' },
     setNight: (on) => { night.on = on; },
     nightLevel: () => night.t,
-    rainLevel: () => weather.t,
     honk(P) { for (const w of walkers) if (Math.hypot(w.g.position.x - P.x, w.g.position.z - P.z) < 16) w.jump = 0.55; },
     setRain: (on) => { weather.on = on; },
     setFound(s, on) {

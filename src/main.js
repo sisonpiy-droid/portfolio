@@ -8,6 +8,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { createWorld, LIMIT, PLAZA_R } from './world.js';
 import { createUI } from './ui.js';
 import { sfx } from './sfx.js';
+import { noWorld } from './fallback.js';
 
 const $ = (s) => document.querySelector(s);
 const panel = $('#panel'), stage = $('#stage');
@@ -15,9 +16,21 @@ const { clamp, lerp } = THREE.MathUtils;
 const smooth = (rate, dt) => 1 - Math.exp(-rate * dt);
 const wrapPi = (a) => ((((a + Math.PI) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) - Math.PI;
 
+/* ---------- quality: phones and weak machines get a lighter render ---------- */
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const lowPower = matchMedia('(pointer: coarse)').matches || innerWidth < 700 || (navigator.deviceMemory ?? 8) <= 4 || (navigator.hardwareConcurrency ?? 8) <= 4;
+const Q = lowPower ? { dpr: 1.25, shadow: 1024, msaa: 2 } : { dpr: 2, shadow: 2048, msaa: 4 };
+let dpr = Math.min(devicePixelRatio, Q.dpr), stopped = false;
+
 /* ---------- renderer & camera ---------- */
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ antialias: true }); } catch (e) { noWorld('3D could not start on this device. Everything else works.'); throw e; }
+renderer.setPixelRatio(dpr);
+renderer.domElement.addEventListener('webglcontextlost', (e) => { // the GPU driver reset: stop drawing and fall back to the plain portfolio
+  e.preventDefault();
+  stopped = true;
+  noWorld('The 3D view stopped (the graphics driver reset). Reload to bring it back; everything else works.');
+});
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.NeutralToneMapping;
@@ -26,12 +39,12 @@ const camera = new THREE.PerspectiveCamera(32, 1, 3, 900); // a nearer clip plan
 
 /* ---------- state ---------- */
 const site = { profile, projects, skills };
-const world = createWorld(places, { name: profile.name });
+const world = createWorld(places, { name: profile.name, shadowSize: Q.shadow });
 const stops = world.stops;
 // reflections for the car paint, glass and water come from a small studio environment
 world.setEnvironment(new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture);
 // bloom makes lamps, headlights and boost flames glow; it is skipped entirely in plain daylight
-const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }));
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: Q.msaa }));
 composer.addPass(new RenderPass(world.scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0, 0.55, 0.82);
 composer.addPass(bloom);
@@ -78,7 +91,6 @@ const held = (...c) => c.some((k) => keys.has(k));
 const toggleChase = () => { chaseOn = !chaseOn; $('#cambtn').classList.toggle('on', chaseOn); };
 const toggleOverview = () => { overviewOn = !overviewOn; $('#ovhint').classList.toggle('show', overviewOn); };
 $('#start').addEventListener('click', (e) => { startDriving(); e.currentTarget.blur(); });
-$('#browse').addEventListener('click', (e) => { ui.openResume(); e.currentTarget.blur(); });
 $('#prompt').addEventListener('click', () => active && ui.openPlace(active));
 $('#navcard').addEventListener('click', (e) => { if (!e.target.closest('#autostop')) ui.openMenu('places'); });
 $('#autostop').addEventListener('click', () => (auto = null));
@@ -89,6 +101,7 @@ $('#cambtn').addEventListener('click', (e) => { toggleChase(); e.currentTarget.b
 
 addEventListener('keydown', (e) => {
   sfx.init(); // the first key press is the gesture that lets the browser play sound
+  if (e.code === 'Escape') return void ui.close();
   if (e.target.closest?.('a, input, textarea')) return;
   if (e.code === 'KeyH' && !e.repeat) { sfx.horn(); world.honk(P); return; }
   if (e.code === 'KeyR' && !e.repeat && driving && !ui.blocking()) { // back on the road
@@ -97,7 +110,6 @@ addEventListener('keydown', (e) => {
     ui.toast('Back on the road');
     return;
   }
-  if (e.code === 'Escape') return void ui.close();
   if (e.code === 'KeyM') return void (ui.blocking() ? ui.close() : ui.openMenu('places'));
   if (e.code === 'KeyC' && !e.repeat) return void toggleChase();
   if (e.code === 'KeyO' && !e.repeat) return void toggleOverview();
@@ -201,7 +213,7 @@ const project = (x, y, z) => {
 };
 
 function updateCamera(dt) {
-  if (!driving) yaw += dt * 0.1; // slow orbit on the intro screen
+  if (!driving) { if (!reduceMotion) yaw += dt * 0.1; } // slow orbit on the intro screen
   else yaw += (Math.round(yaw / (Math.PI * 2)) * Math.PI * 2 - yaw) * smooth(2.5, dt);
   intro += ((driving ? 0 : 1) - intro) * smooth(2.2, dt);
   ov += ((overviewOn ? 1 : 0) - ov) * smooth(2.5, dt);
@@ -221,9 +233,9 @@ function updateCamera(dt) {
   look.lerpVectors(focus, chaseLook, e);
 
   shake = Math.max(shake * Math.exp(-5 * dt), P.boost * 0.22, P.drift * Math.abs(P.slide) * 0.3);
-  if (shake > 0.01) camera.position.add(v.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(shake * 0.9));
+  if (shake > 0.01 && !reduceMotion) camera.position.add(v.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(shake * 0.9));
   camera.lookAt(look);
-  camera.fov = lerp(36, 52, e) + 9 * P.boost;
+  camera.fov = lerp(36, 52, e) + (reduceMotion ? 0 : 9 * P.boost);
 
   // while the intro panel is up, centre the world in the space beside it
   offX += ((wide && !driving ? panel.offsetWidth / 2 : 0) - offX) * smooth(4, dt);
@@ -281,11 +293,36 @@ function tick(dt, now) {
   if (glow > 0.03) { bloom.strength = glow; composer.render(); } else renderer.render(world.scene, camera);
 }
 
-let last = performance.now();
+let last = performance.now(), ready = false, failures = 0, skip = false, frames = 0, windowStart = 0;
+// If the machine cannot hold about 30 fps, drop the render resolution a step (down to 0.75x) rather than stutter.
+function adaptResolution(now) {
+  if (now < 2500) return; // let shaders compile first
+  if (!windowStart) windowStart = now;
+  frames++;
+  if (now - windowStart < 2000) return;
+  const fps = (frames * 1000) / (now - windowStart);
+  if (fps < 32 && dpr > 0.75) { dpr = Math.max(0.75, dpr * 0.8); renderer.setPixelRatio(dpr); resize(); }
+  frames = 0; windowStart = now;
+}
 function loop(now) {
+  if (stopped) return;
+  if (!driving && ui.blocking() && (skip = !skip)) return void requestAnimationFrame(loop); // a card is open over the intro: draw every other frame
   const dt = Math.min((now - last) / 1000, 0.05);
   last = now;
-  tick(dt, now);
+  try {
+    tick(dt, now);
+    failures = 0;
+    adaptResolution(now);
+    if (!ready && now > 1500) { // the world is drawing: unlock the Explore button
+      ready = true;
+      document.body.classList.add('ready');
+      $('#start').disabled = false;
+      $('#loadtext').textContent = 'Ready. Enjoy the drive!';
+    }
+  } catch (err) {
+    console.error(err);
+    if (++failures >= 3) { stopped = true; noWorld('Something went wrong in the 3D view. Everything else works.'); return; }
+  }
   requestAnimationFrame(loop);
 }
 resize();

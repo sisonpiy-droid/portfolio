@@ -1,6 +1,13 @@
+import { existsSync } from 'node:fs';
 import { defineConfig } from 'vite';
-import { profile, projects, skills } from './src/content.js';
+import { profile as baseProfile, projects, skills } from './src/content.js';
 import { esc, renderers } from './src/render.js';
+
+// The Download CV button only exists when there is a real file behind it: drop your CV at public/cv.pdf.
+// Until then the button opens the printable CV page instead, so a visitor is never sent to a 404.
+const hasCv = existsSync(new URL('./public/cv.pdf', import.meta.url));
+const profile = { ...baseProfile, cv: hasCv ? '/cv.pdf' : '' };
+const site = { profile, projects, skills };
 
 // Search engines read the HTML, not the 3D world, so the name, the text, the whole CV and structured data
 // are baked into index.html at build time, from the same content.js the page uses.
@@ -36,6 +43,8 @@ const head = `
   <meta property="og:image" content="${url}/og.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="${esc(`${profile.name}: ${profile.headline}`)}" />
+  <meta property="og:locale" content="en_IN" />
   <meta name="twitter:card" content="summary_large_image" />
   <script type="application/ld+json">${JSON.stringify(person).replace(/</g, '\\u003c')}</script>`;
 
@@ -50,12 +59,18 @@ const seo = {
       ['<b class="mono"></b>', `<b class="mono">${esc(profile.name[0])}</b>`],
       ['></h1>', `><span class="sr">${esc(profile.name)}: </span>${esc(profile.headline)}</h1>`],
       ['<p id="intro" class="i" style="--i:2"></p>', `<p id="intro" class="i" style="--i:2">${esc(profile.intro)}</p>`],
+      ['<p class="eyebrow i" style="--i:1"></p>', `<p class="eyebrow i" style="--i:1">${esc(profile.title)} · ${esc(profile.location)}</p>`],
+      ['<!-- cv -->', hasCv ? '<a class="btn" href="/cv.pdf" download>Download CV</a>' : '<button class="btn" data-open="resume">View CV</button>'],
+      ['<p id="quick" class="quick i" style="--i:3"></p>', `<p id="quick" class="quick i" style="--i:3">${renderers(site).contacts().filter((l) => !l.download).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join('<span aria-hidden="true">·</span>')}</p>`],
       // the CV the "Browse without driving" button opens, already in the page
-      ['<section id="sheet" role="dialog" aria-modal="true" hidden></section>', `<section id="sheet" class="resume" role="dialog" aria-modal="true" hidden>${renderers({ profile, projects, skills }).resumeHTML()}</section>`],
+      ['<section id="sheet" role="dialog" aria-modal="true" hidden></section>', `<section id="sheet" class="resume" role="dialog" aria-modal="true" hidden>${renderers(site).resumeHTML()}</section>`],
     ].reduce((out, [from, to]) => {
       if (!out.includes(from)) throw new Error(`seo: ${from} is missing from index.html`);
       return out.replaceAll(from, to);
     }, html),
+  },
+  buildStart() {
+    if (!hasCv) this.warn('public/cv.pdf not found: the intro shows "View CV" (printable page) instead of "Download CV". Add your CV there to switch it.');
   },
   generateBundle() {
     this.emitFile({ type: 'asset', fileName: 'robots.txt', source: `User-agent: *\nAllow: /\n\nSitemap: ${url}/sitemap.xml\n` });
@@ -63,4 +78,5 @@ const seo = {
   },
 };
 
-export default defineConfig({ plugins: [seo] });
+// the 3D engine is its own lazy chunk (~680 kB), loaded after the page is already usable, so the size warning is expected
+export default defineConfig({ plugins: [seo], build: { chunkSizeWarningLimit: 750 }, define: { __HAS_CV__: JSON.stringify(hasCv) } });

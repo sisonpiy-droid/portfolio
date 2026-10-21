@@ -4,6 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <!-- seo -->
+  <meta name="theme-color" content="#e4eefb" />
+  <noscript><style>
+    /* without JavaScript there is no village, so show the whole CV in the page */
+    html, body { overflow: auto !important; height: auto !important; }
+    #panel { position: static !important; width: auto !important; transform: none !important; }
+    #sheet { position: static !important; display: block !important; transform: none !important; width: auto !important; max-height: none !important; box-shadow: none !important; animation: none !important; padding: 24px 20px !important; }
+    #hud, #stage, #pad, .cta, .jump, .world, .controls, .resume-bar { display: none !important; }
+  </style></noscript>
   <link rel="icon" href="/favicon.ico" sizes="48x48" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -16,20 +24,27 @@
   <div id="tags" aria-hidden="true"></div>
 
   <!-- intro panel -->
-  <aside id="panel">
+  <main id="panel">
     <span class="brand i" style="--i:0"><b class="mono"></b><span id="brand"></span></span>
     <div class="hero">
+      <p class="eyebrow i" style="--i:1"></p>
       <h1 id="headline" class="i" style="--i:1"></h1>
       <p id="intro" class="i" style="--i:2"></p>
       <div class="cta i" style="--i:3">
-        <button id="start" class="btn primary">Start driving <kbd>Enter</kbd></button>
-        <button id="browse" class="btn">Browse without driving</button>
+        <button class="btn primary" data-open="projects">View projects</button>
+        <!-- cv -->
       </div>
-      <p id="quick" class="quick i" style="--i:3" hidden></p>
-      <div id="loader" class="i" style="--i:4">
-        <span id="loadtext">Setting up the world …</span>
-        <div class="track"><i></i>
-          <svg class="loadcar" viewBox="0 0 40 20"><rect x="2" y="6" width="36" height="9" rx="4" fill="#2f66d6" /><rect x="10" y="1" width="18" height="8" rx="3" fill="#8ec5f2" /><circle cx="10" cy="16" r="3.4" fill="#1b3263" /><circle cx="30" cy="16" r="3.4" fill="#1b3263" /></svg>
+      <nav class="jump i" style="--i:3" aria-label="Jump to a section">
+        <button data-open="experience">Experience</button><button data-open="education">Education</button><button data-open="skills">Skills</button><button data-open="contact">Contact</button>
+      </nav>
+      <p id="quick" class="quick i" style="--i:3"></p>
+      <div class="world i" style="--i:4">
+        <button id="start" class="btn" disabled>Explore the 3D village <kbd>Enter</kbd></button>
+        <div id="loader" aria-live="polite">
+          <span id="loadtext">Loading the 3D village (optional) …</span>
+          <div class="track"><i></i>
+            <svg class="loadcar" viewBox="0 0 40 20" aria-hidden="true"><rect x="2" y="6" width="36" height="9" rx="4" fill="#2f66d6" /><rect x="10" y="1" width="18" height="8" rx="3" fill="#8ec5f2" /><circle cx="10" cy="16" r="3.4" fill="#1b3263" /><circle cx="30" cy="16" r="3.4" fill="#1b3263" /></svg>
+          </div>
         </div>
       </div>
     </div>
@@ -39,7 +54,7 @@
       <div><dt>Stop in the circle</dt><dd><kbd>Enter</kbd><br />opens the place</dd></div>
     </dl>
     <footer class="i" style="--i:6">Rendered live in your browser.</footer>
-  </aside>
+  </main>
 
   <!-- driving HUD -->
   <div id="hud">
@@ -68,7 +83,7 @@
   <button id="prompt" hidden></button>
 
   <!-- self-driving: docked, the world keeps running -->
-  <section id="auto" hidden>
+  <section id="auto" role="dialog" aria-label="Self-driving" hidden>
     <header><h2>Self-driving</h2><button class="x" aria-label="Close">×</button></header>
     <p>Pick a destination and the car drives itself there, parking at the place or in the car park, until you steer, accelerate or brake.</p>
     <ul id="autolist"></ul>
@@ -78,22 +93,22 @@
   <section id="sheet" role="dialog" aria-modal="true" hidden></section>
 
   <!-- menu: map, settings, controls -->
-  <section id="menu" role="dialog" aria-modal="true" hidden>
+  <section id="menu" role="dialog" aria-modal="true" aria-label="Menu" hidden>
     <div class="menu-card">
       <header>
         <div><h2>Menu</h2><p class="progress"><span id="dashes" class="dashes"></span><span id="found"></span></p></div>
         <button class="x" aria-label="Close">×</button>
       </header>
-      <nav class="tabs">
-        <button data-tab="places" class="on">Places</button>
-        <button data-tab="settings">Settings</button>
-        <button data-tab="controls">Controls</button>
+      <nav class="tabs" role="tablist" aria-label="Menu sections">
+        <button role="tab" data-tab="places" class="on">Places</button>
+        <button role="tab" data-tab="settings">Settings</button>
+        <button role="tab" data-tab="controls">Controls</button>
       </nav>
-      <div class="tab" data-tab="places">
+      <div class="tab" role="tabpanel" data-tab="places">
         <canvas id="bigmap"></canvas>
         <ul id="places"></ul>
       </div>
-      <div class="tab" data-tab="settings" hidden>
+      <div class="tab" role="tabpanel" data-tab="settings" hidden>
         <label class="row"><span><b>Night</b><i>Lamps on, stars out</i></span><input id="optNight" type="checkbox" /></label>
         <label class="row"><span><b>Rain</b><i>Grey sky, wet weather</i></span><input id="optRain" type="checkbox" /></label>
         <label class="row"><span><b>Repair street lights</b><i>Stand every broken lamp back up</i></span><button id="optRepair" class="btn small">Repair</button></label>
@@ -101,7 +116,7 @@
         <label class="row"><span><b>Engine sound</b><i>A soft hum while you drive</i></span><input id="optSound" type="checkbox" /></label>
         <label class="row"><span><b>Reset places</b><i>Forget which places you have visited</i></span><button id="optReset" class="btn small">Reset</button></label>
       </div>
-      <div class="tab" data-tab="controls" hidden>
+      <div class="tab" role="tabpanel" data-tab="controls" hidden>
         <ul class="keys">
           <li><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows</span>Drive</li>
           <li><span><kbd>Shift</kbd></span>Boost (the tank refills)</li>
@@ -119,13 +134,13 @@
     </div>
   </section>
 
-  <div id="pad" aria-hidden="true">
-    <button data-key="ArrowLeft">◀</button>
-    <button data-key="ArrowUp">▲</button>
-    <button data-key="ArrowDown">▼</button>
-    <button data-key="ArrowRight">▶</button>
-    <button data-key="Space" class="hop">Drift</button>
-    <button data-key="ShiftLeft" class="boostbtn">Boost</button>
+  <div id="pad" role="group" aria-label="Driving controls">
+    <button data-key="ArrowLeft" aria-label="Steer left">◀</button>
+    <button data-key="ArrowUp" aria-label="Accelerate">▲</button>
+    <button data-key="ArrowDown" aria-label="Brake or reverse">▼</button>
+    <button data-key="ArrowRight" aria-label="Steer right">▶</button>
+    <button data-key="Space" aria-label="Drift" class="hop">Drift</button>
+    <button data-key="ShiftLeft" aria-label="Boost" class="boostbtn">Boost</button>
   </div>
 
   <script type="module" src="/src/boot.js"></script>

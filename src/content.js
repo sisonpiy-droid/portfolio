@@ -14,7 +14,8 @@ export const profile = {
   github: 'https://github.com/sisonpiy-droid',
   url: 'https://piyush-sisondia.vercel.app', // the site's own address: change it here when the custom domain is live
   elsewhere: ['https://piyushsisondia.cv'], // other pages about you, so search engines tie them together
-  cv: '', // TODO: put your latest CV in /public (e.g. public/cv.pdf) and write '/cv.pdf' here
+  // Drop your CV at public/cv.pdf and the Download CV button appears (the build checks the file exists; see vite.config.js).
+  cv: typeof __HAS_CV__ !== 'undefined' && __HAS_CV__ ? '/cv.pdf' : '',
   education: [
     { what: 'Postgraduate programme', where: 'MESA School of Business', when: 'Class of 2027' },
     { what: 'BBA, Marketing', where: 'Manipal Academy of Higher Education', when: '2019 – 2022', note: 'Grade 8.73 · Management Head of Conscendo, a national undergraduate fest (team of 12, judges and sponsors).' },
@@ -38,8 +39,93 @@ export const skills = [
   { name: 'Thinking in numbers', proof: 'Modelled SaaS vs performance pricing for LoyalTap and a 10x AUM roadmap at 32% CAGR.' },
 ];
 
-// Every project, strongest first; they all live together in the Projects gallery.
+// The three featured projects first, then the rest; they all live together in the Projects gallery.
+// A project only gets a Code link if its repo is public, and a Live link only if the app works (npm run check:links).
 export const projects = [
+  {
+    id: 'vc-pipeline',
+    featured: true,
+    title: 'VC Pipeline Intelligence',
+    tagline: 'Which investors should a first-time founder contact this week, and what public evidence says so?',
+    category: 'Fundraising tool · AI + data',
+    period: 'Oct 2026',
+    stat: '82 of 82 investors refreshed, zero errors',
+    context: 'MESA final evaluation, built for a case founder raising a seed round',
+    problem: 'A first-time founder raising a seed round tracks around 80 investors in a spreadsheet and cannot tell who is active right now. Public signals are scattered, undated or simply wrong.',
+    built: [
+      'Searches public sources for each investor’s activity in the last 30 days, then verifies every piece of evidence: fetches the page, reads the publish date, checks the investor is actually named, and rejects stale, undated or duplicate items.',
+      'Gemini classifies each signal; its output is schema-validated and every quoted excerpt must appear verbatim on the fetched page.',
+      'A fixed, explainable 0–100 score (recency 30 · relevance 30 · evidence 20 · fit 15 · relationship 5) and a recommended action with a reason.',
+      'The refresh runs as a database role that cannot read or overwrite the founder’s own notes and contact history, and a failed search is never shown as a quiet investor.',
+    ],
+    // Role lines are drawn from each repo's git history (single committer, Claude Code co-author trailers). Edit if you want them worded differently.
+    role: 'Solo project, built end to end by me (81 commits, no other contributors) with Claude Code as the coding assistant: the scoring and data-safety design, the build, the tests and the deployment.',
+    stack: ['Next.js', 'TypeScript', 'Postgres (Supabase)', 'Gemini Flash', 'Tavily search', 'Vercel cron', 'Vitest', 'Playwright'],
+    result: [
+      'Three production refreshes completed 82 of 82 investors with zero errors (logged in the repo).',
+      '486 automated tests across 41 files, all passing.',
+      'The refresh database role cannot read the founder’s notes; a test confirms the database itself refuses.',
+      'The scheduled refresh runs twice a week; the last run I checked (19 Oct 2026) succeeded.',
+    ],
+    images: [{ src: '/projects/vc-pipeline.webp', w: 1200, h: 675, alt: 'The priority queue: 31 of 82 investors have a fresh, relevant signal.', caption: 'The priority queue, from the project’s demo video.' }],
+    skills: ['Scoring design', 'Next.js', 'Postgres / Supabase', 'Gemini', 'Tavily search', 'Testing'],
+    links: [{ label: 'Live app', url: 'https://vc-pipeline-intelligence.vercel.app', primary: true }, { label: 'Code', url: 'https://github.com/sisonpiy-droid/vc-pipeline-intelligence' }],
+  },
+  {
+    id: 'aangan',
+    featured: true,
+    title: 'Aangan AI Front Desk',
+    tagline: 'A voice agent answers every call, qualifies the lead and books the consultation.',
+    category: 'Voice AI · Ops automation',
+    period: 'Oct 2026',
+    stat: 'Answers 24/7 in English and Hindi',
+    context: 'MESA case: an interior design studio',
+    problem: 'An interior design studio was missing calls and spending designer time on enquiries that were never going to convert.',
+    built: [
+      'A voice agent answers 24/7 in English and Hindi.',
+      'After each call Gemini turns the transcript into a structured lead, but written rules alone decide whether it is qualified, needs info, needs review, is declined or escalated. The model never sets a status, and a test enforces it.',
+      'Flags agent lines that leak pricing or promise a slot.',
+      'Supabase is the system of record; HubSpot gets a contact and a deal, qualified callers get a Calendly link for a real slot, and the team gets a Telegram handoff. Bookings flow back through a signed webhook.',
+    ],
+    role: 'Solo project, built end to end by me (26 commits, no other contributors) with Claude Code as the coding assistant: the qualification rules taken from the case documents, the rule that the model only extracts, and the HubSpot, Calendly and Telegram integrations.',
+    stack: ['Node.js', 'Vercel serverless', 'Postgres (Supabase)', 'Gemini', 'Vaani Voice', 'HubSpot API', 'Calendly webhooks', 'Telegram Bot API'],
+    result: [
+      '90 automated tests, all passing, including the qualification rules run against the case’s sample call transcripts.',
+      'Every qualification decision traces back to the studio’s written criteria; a test enforces that a high-value lead is a priority flag and never changes a status.',
+      'Conflicts in the source policy are decided and written down in the README instead of hidden.',
+    ],
+    caveat: 'A real inbound call has not yet been run end to end; the pipeline is tested against sample transcripts.',
+    images: [{ src: '/projects/aangan-architecture.webp', w: 1500, h: 1075, alt: 'Components map: caller, voice agent, backend, database, Gemini, rules, booking, CRM, Telegram, email and dashboard.', caption: 'Architecture: Gemini only reads the call, rules in code decide every lead.' }],
+    skills: ['Process design', 'HubSpot', 'Voice AI', 'Gemini', 'Supabase', 'Webhooks'],
+    links: [{ label: 'Code', url: 'https://github.com/sisonpiy-droid/aangan-agent', primary: true }],
+  },
+  {
+    id: 'kargo',
+    featured: true,
+    title: 'Kargo Hiring Dashboard',
+    tagline: 'CV screening that is fast, explainable and blind to names.',
+    category: 'Hiring tool · AI',
+    period: 'Sep 2026',
+    stat: 'Blind scoring on a 100-point rubric',
+    context: 'MESA case: a founder hiring product managers',
+    problem: 'A founder hiring PMs and senior PMs had more CVs than time, and wanted screening that was consistent, explainable and not swayed by names.',
+    built: [
+      'Name, email and phone are pulled out with plain code and stored separately; the model only ever sees the redacted CV and the rubric.',
+      'Each CV is scored 0–10 per criterion on both the PM and senior PM rubrics, with a one-line reason each, validated before saving.',
+      'A weighted 0–100 score and an Interview / Reject recommendation from top-N plus a threshold, which the founder can override.',
+      'Drafts an interview brief, an invite and a rejection. Nothing is emailed until the founder clicks Send.',
+    ],
+    role: 'Solo project, built end to end by me (19 commits, no other contributors) with Claude Code as the coding assistant: the redact-first flow, the editable rubric file and the send-only-on-click rule.',
+    stack: ['Next.js', 'Postgres (Supabase)', 'Gemini Flash', 'Resend', 'Vercel'],
+    result: [
+      'Name, email and phone redaction passes on the three sample CVs in the repo.',
+      'The rubric is a plain text file the founder can edit, validated to add up to 100% for each role.',
+      'By design, nothing is emailed to a candidate until the founder clicks Send.',
+    ],
+    images: [{ src: '/projects/kargo-hiring.webp', w: 1200, h: 675, alt: 'A candidate scorecard: rubric scores with a one-line reason each, and interview questions to probe.', caption: 'A candidate scorecard with sample data, from the project’s demo video.' }],
+    skills: ['Rubric design', 'Privacy by design', 'Next.js', 'Supabase', 'Gemini', 'Resend'],
+    links: [{ label: 'Code', url: 'https://github.com/sisonpiy-droid/kargo-hiring', primary: true }],
+  },
   {
     id: 'loyaltap',
     title: 'LoyalTap',
@@ -59,63 +145,6 @@ export const projects = [
     links: [],
   },
   {
-    id: 'vc-pipeline',
-    title: 'VC Pipeline Intelligence',
-    tagline: 'Which investors should a first-time founder contact this week, and what public evidence says so?',
-    category: 'Fundraising tool · AI + data',
-    period: 'Oct 2026',
-    stat: '82 of 82 investors refreshed, zero errors',
-    context: 'MESA final evaluation, built for a case founder raising a seed round',
-    problem: 'A first-time founder raising a seed round tracks around 80 investors in a spreadsheet and cannot tell who is active right now. Public signals are scattered, undated or simply wrong.',
-    built: [
-      'Searches public sources for each investor’s activity in the last 30 days, then verifies every piece of evidence: fetches the page, reads the publish date, checks the investor is actually named, and rejects stale, undated or duplicate items.',
-      'Gemini classifies each signal; its output is schema-validated and every quoted excerpt must appear verbatim on the fetched page.',
-      'A fixed, explainable 0–100 score (recency 30 · relevance 30 · evidence 20 · fit 15 · relationship 5) and a recommended action with a reason.',
-      'The refresh runs as a database role that cannot read or overwrite the founder’s own notes and contact history, and a failed search is never shown as a quiet investor.',
-    ],
-    result: ['Live, with a twice-weekly scheduled refresh.', 'Three production refreshes completed 82 of 82 investors with zero errors.', '302 automated tests.'],
-    skills: ['Scoring design', 'Next.js', 'Postgres / Supabase', 'Gemini', 'Tavily search', 'Testing'],
-    links: [{ label: 'Live app', url: 'https://vc-pipeline-intelligence.vercel.app' }, { label: 'Code', url: 'https://github.com/sisonpiy-droid/vc-pipeline-intelligence' }],
-  },
-  {
-    id: 'aangan',
-    title: 'Aangan AI Front Desk',
-    tagline: 'A voice agent answers every call, qualifies the lead and books the consultation.',
-    category: 'Voice AI · Ops automation',
-    period: 'Oct 2026',
-    stat: 'Answers 24/7 in English and Hindi',
-    context: 'MESA case: an interior design studio',
-    problem: 'An interior design studio was missing calls and spending designer time on enquiries that were never going to convert.',
-    built: [
-      'A voice agent answers 24/7 in English and Hindi.',
-      'After each call Gemini turns the transcript into a structured lead, but written rules alone decide whether it is qualified, needs info, needs review, is declined or escalated. The model never sets a status, and a test enforces it.',
-      'Flags agent lines that leak pricing or promise a slot.',
-      'Supabase is the system of record; HubSpot gets a contact and a deal, qualified callers get a Calendly link for a real slot, and the team gets a Telegram handoff. Bookings flow back through a signed webhook.',
-    ],
-    result: ['Deployed end to end on Vercel.', 'Every qualification decision traces back to the studio’s written criteria.'],
-    skills: ['Process design', 'HubSpot', 'Voice AI', 'Gemini', 'Supabase', 'Webhooks'],
-    links: [{ label: 'Code', url: 'https://github.com/sisonpiy-droid/aangan-agent' }],
-  },
-  {
-    id: 'kargo',
-    title: 'Kargo Hiring Dashboard',
-    tagline: 'CV screening that is fast, explainable and blind to names.',
-    category: 'Hiring tool · AI',
-    period: 'Sep 2026',
-    stat: 'Blind scoring on a 100-point rubric',
-    context: 'MESA case: a founder hiring product managers',
-    problem: 'A founder hiring PMs and senior PMs had more CVs than time, and wanted screening that was consistent, explainable and not swayed by names.',
-    built: [
-      'Name, email and phone are pulled out with plain code and stored separately; the model only ever sees the redacted CV and the rubric.',
-      'Each CV is scored 0–10 per criterion on both the PM and senior PM rubrics, with a one-line reason each, validated before saving.',
-      'A weighted 0–100 score and an Interview / Reject recommendation from top-N plus a threshold, which the founder can override.',
-      'Drafts an interview brief, an invite and a rejection. Nothing is emailed until the founder clicks Send.',
-    ],
-    result: ['Live on Vercel.', 'Redaction tested against a set of sample CVs.', 'The rubric is a plain text file the founder can edit, validated to add up to 100%.'],
-    skills: ['Rubric design', 'Privacy by design', 'Next.js', 'Supabase', 'Gemini', 'Resend'],
-    links: [{ label: 'Live app', url: 'https://kargo-hiring.vercel.app' }, { label: 'Code', url: 'https://github.com/sisonpiy-droid/kargo-hiring' }],
-  },
-  {
     id: 'jarvis',
     title: 'JARVIS',
     tagline: 'My personal AI chief of staff, running 24/7 for free.',
@@ -130,7 +159,7 @@ export const projects = [
     ],
     result: ['Running 24/7 at zero hosting cost.', 'About 50 commits over two weeks; I use it every day.'],
     skills: ['Agents', 'Supabase', 'Edge functions and cron', 'TypeScript', 'Telegram bots', 'Gemini'],
-    links: [{ label: 'Code', url: 'https://github.com/sisonpiy-droid/jarvis' }],
+    links: [], // the repo is private
   },
   {
     id: 'muse',
@@ -148,7 +177,7 @@ export const projects = [
     ],
     result: ['Live on Vercel.', 'An end-to-end test plays out the spec’s most important scenario against the real model.', 'About 70 commits.'],
     skills: ['PRDs', 'Next.js', 'Prisma / Postgres', 'Auth', 'LLM memory', 'Testing'],
-    links: [{ label: 'Live app', url: 'https://muse-two-brown.vercel.app' }, { label: 'Code', url: 'https://github.com/sisonpiy-droid/muse' }],
+    links: [{ label: 'Live app', url: 'https://muse-two-brown.vercel.app' }],
   },
   {
     id: 'reel-match',
@@ -165,7 +194,7 @@ export const projects = [
     ],
     result: ['Built in a day.'],
     skills: ['Product design', 'React', 'Claude', 'TMDB API', 'Supabase'],
-    links: [{ label: 'Code', url: 'https://github.com/sisonpiy-droid/reel-match' }],
+    links: [], // the repo is private
   },
   {
     id: 'linkedin-bot',
@@ -200,7 +229,7 @@ export const projects = [
     ],
     result: ['Shipped to testers as an MVP.'],
     skills: ['React', 'Serverless', 'Claude / Gemini', 'Security basics'],
-    links: [{ label: 'Code', url: 'https://github.com/sisonpiy-droid/presence-project' }],
+    links: [], // the repo is private
   },
   {
     id: 'tripsync',
