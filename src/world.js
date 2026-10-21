@@ -249,13 +249,6 @@ export function createWorld(places, opts = {}) {
   }
   const at = (S, d) => S.s[Math.min(S.s.length - 1, Math.max(0, Math.round((d / S.len) * (S.s.length - 1))))];
   const yawOf = (q) => Math.atan2(q.tan.x, q.tan.z);
-  // `at` snaps to the nearest sample, which makes a moving car hop; this blends the two samples either side
-  const atSmooth = (S, d) => {
-    const f = Math.min(S.s.length - 1, Math.max(0, (d / S.len) * (S.s.length - 1))), i = Math.floor(f), k = f - i, a = S.s[i], b = S.s[Math.min(S.s.length - 1, i + 1)];
-    const mix = (u, v) => ({ x: u.x + (v.x - u.x) * k, z: u.z + (v.z - u.z) * k });
-    const tan = mix(a.tan, b.tan), tl = Math.hypot(tan.x, tan.z) || 1;
-    return { p: mix(a.p, b.p), n: mix(a.n, b.n), tan: { x: tan.x / tl, z: tan.z / tl } };
-  };
   function strip(S, off, width, y, material, uvScale = 8, from = 0, to = Infinity) {
     const list = S.s.filter((q) => q.d >= from && q.d <= to);
     const pos = [], nor = [], uv = [], idx = [];
@@ -1226,8 +1219,9 @@ export function createWorld(places, opts = {}) {
     return { outer, inner, x };
   });
 
-  // traffic: cars arrive at the far end of a road, drive to the roundabout, U-turn, drive back and leave; then another car arrives.
-  // The pool holds six different cars; an idle one is picked at random each time, so the traffic never looks the same.
+  // traffic: a car arrives at the far end of one road, drives to the roundabout, circles it clockwise (we drive on the left)
+  // and leaves by a different road, straight on or to the right, never back the way it came. Then it is parked away and
+  // another arrives. The pool holds six different cars; an idle one is picked at random each time.
   const LOOKS = [
     { kind: 'sedan', color: 0xf5c542 }, { kind: 'suv', color: 0x3fae7a }, { kind: 'hatch', color: 0xd9534f },
     { kind: 'van', color: 0xf1f3f6 }, { kind: 'sedan', color: 0x5b6b8c }, { kind: 'hatch', color: 0x8d5bd0 },
@@ -1236,9 +1230,44 @@ export function createWorld(places, opts = {}) {
     const car = makeCar(look.color, { kind: look.kind });
     car.group.visible = false;
     scene.add(car.group);
-    return { ...car, active: false, S: null, s: 0, dir: -1, v: 0, cruise: 8, x: 0, z: -500, r: -2, turn: null, sc: 0, yaw: null, steer: 0, grow: 0, leaving: false };
+    return { ...car, active: false, path: null, u: 0, v: 0, cruise: 8, x: 0, z: -500, r: -2, yaw: null, steer: 0, grow: 0, leaving: false };
   });
-  const roads = [{ S: entrance.S, timer: 1.5, max: 2 }, { S: east.S, timer: 4, max: 1 }];
+  const LANE = 1.8, RING_R = 9.8, END_NEAR = 6;
+  const driveable = arms.filter((a) => a.ang !== undefined); // the places' roads, the entrance and the east road
+  for (const a of driveable) { // which side of the road centre line is the left-hand lane for a car driving towards the roundabout
+    const rim = a.S.s.findIndex((q) => Math.hypot(q.p.x, q.p.z) > RB_R + 1.5), q = a.S.s[rim];
+    a.rim = rim;
+    a.side = Math.sign(-q.n.x * q.tan.z + q.n.z * q.tan.x) || 1;
+    a.far = a.S.s.findLastIndex((q2) => q2.d <= a.S.len - END_NEAR);
+  }
+  const lanePoint = (a, i, inbound) => { const q = a.S.s[i], off = (inbound ? a.side : -a.side) * LANE; return new THREE.Vector3(q.p.x + q.n.x * off, ROAD_Y, q.p.z + q.n.z * off); };
+  const trafficWeight = (a) => (a.kind === 'entrance' ? 3 : a.kind === 'east' ? 2 : 1);
+  function planTrip(A) { // from road A's far end, round the roundabout, out along another road
+    const dx = -Math.cos(A.ang), dz = -Math.sin(A.ang); // heading as it arrives
+    const others = driveable.filter((b) => b !== A);
+    const ahead = others.filter((b) => Math.cos(b.ang) * dx + Math.sin(b.ang) * dz >= 0.4 || Math.cos(b.ang) * -dz + Math.sin(b.ang) * dx >= 0.4); // straight on, or right
+    const pool = ahead.length ? ahead : others, B = pool[(Math.random() * pool.length) | 0];
+    const pts = [], step = Math.max(1, Math.round(6 / (A.S.len / (A.S.s.length - 1))));
+    for (let i = A.far; i > A.rim; i -= step) pts.push(lanePoint(A, i, true));
+    pts.push(lanePoint(A, A.rim, true));
+    const ringStart = pts.length, a0 = Math.atan2(pts[pts.length - 1].z, pts[pts.length - 1].x);
+    const out0 = lanePoint(B, B.rim, false), a1 = Math.atan2(out0.z, out0.x);
+    const delta = (((a1 - a0) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2), m = Math.max(2, Math.ceil(delta / 0.35));
+    for (let k = 1; k < m; k++) { const ang = a0 + (delta * k) / m; pts.push(new THREE.Vector3(Math.cos(ang) * RING_R, ROAD_Y, Math.sin(ang) * RING_R)); }
+    const ringEnd = pts.length;
+    pts.push(out0);
+    const bstep = Math.max(1, Math.round(6 / (B.S.len / (B.S.s.length - 1))));
+    for (let i = B.rim + bstep; i < B.far; i += bstep) pts.push(lanePoint(B, i, false));
+    pts.push(lanePoint(B, B.far, false));
+    let poly = 0; const cum = pts.map((q, i) => (poly += i ? q.distanceTo(pts[i - 1]) : 0));
+    const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
+    curve.arcLengthDivisions = 600;
+    const len = curve.getLength(), k = len / poly;
+    return { curve, len, from: A, to: B, ringStart: cum[ringStart] * k, ringEnd: cum[ringEnd] * k, entry: pts[ringStart] };
+  }
+  const pt = new THREE.Vector3(), tg = new THREE.Vector3();
+  const stage = (c) => (c.u < c.path.ringStart ? 0 : c.u < c.path.ringEnd ? 1 : 2); // approaching, on the roundabout, leaving
+  let trafficTimer = 1.5;
 
   // drift and boost effects: tyre smoke, skid marks on the ground, a glowing flame trail
   const pool = (n, make) => Array.from({ length: n }, () => { const m = make(); m.visible = false; scene.add(m); return { m, life: 0, max: 1, vx: 0, vz: 0 }; });
@@ -1498,55 +1527,50 @@ export function createWorld(places, opts = {}) {
     }
     sparkGeo.attributes.position.needsUpdate = true;
 
-    // traffic: a new car arrives now and then, cruises in, slows for the end, U-turns, drives out and is parked away
-    const LANE = 1.8, END_NEAR = 6, END_FAR = 14;
-    for (const road of roads) {
-      road.timer -= dt;
-      if (road.timer > 0) continue;
-      const mine = traffic.filter((c) => c.active && c.S === road.S), free = traffic.filter((c) => !c.active);
-      const q = atSmooth(road.S, road.S.len - END_NEAR);
-      const clear = mine.length < road.max && free.length && mine.every((c) => c.dir > 0 || c.s < road.S.len - 32) && Math.hypot(P.x - q.p.x, P.z - q.p.z) > 30; // never pops in next to the player
-      if (!clear) { road.timer = 1; continue; }
-      const c = free[(Math.random() * free.length) | 0];
-      Object.assign(c, { active: true, S: road.S, s: road.S.len - END_NEAR, dir: -1, cruise: 7 + Math.random() * 3.5, turn: null, yaw: null, steer: 0, grow: 0, leaving: false, r: 1.5 });
-      c.v = c.cruise * 0.5;
-      c.group.visible = true;
-      road.timer = 4 + Math.random() * 7;
+    // traffic: a car arrives now and then, follows its route (give way at the roundabout, keep a gap), and is parked away at the end
+    trafficTimer -= dt;
+    if (trafficTimer <= 0) {
+      const free = traffic.filter((c) => !c.active), nActive = traffic.length - free.length;
+      const roadsFree = driveable.filter((a) => !traffic.some((c) => c.active && c.path.from === a && c.u < 34) && Math.hypot(P.x - a.S.s[a.far].p.x, P.z - a.S.s[a.far].p.z) > 30); // never pops in next to the player
+      if (free.length && nActive < 4 && roadsFree.length) {
+        let r = Math.random() * roadsFree.reduce((t, a) => t + trafficWeight(a), 0), A = roadsFree[0];
+        for (const a of roadsFree) { r -= trafficWeight(a); if (r <= 0) { A = a; break; } }
+        const c = free[(Math.random() * free.length) | 0];
+        Object.assign(c, { active: true, path: planTrip(A), u: 0, cruise: 7 + Math.random() * 3.5, yaw: null, steer: 0, grow: 0, leaving: false, r: 1.5 });
+        c.v = c.cruise * 0.5;
+        c.group.visible = true;
+        trafficTimer = 3 + Math.random() * 5;
+      } else trafficTimer = 1;
     }
     for (const c of traffic) {
       if (!c.active) continue;
-      const toEnd = c.dir > 0 ? c.S.len - END_NEAR - c.s : c.s - END_FAR;
-      let target = c.leaving || c.turn != null ? 3.2 : toEnd < 16 ? Math.max(3.2, Math.min(c.cruise, 2.6 + toEnd * 0.7)) : c.cruise;
-      if (c.yaw != null) { // keep a gap to whatever is in front: the player or another car
-        const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw);
+      const pa = c.path, toEnd = pa.len - c.u, toRing = pa.ringStart - c.u;
+      let target = c.leaving ? 3.2 : toEnd < 16 ? Math.max(3.2, Math.min(c.cruise, 2.6 + toEnd * 0.7)) : c.cruise;
+      if (toRing > -2 && toRing < 20) target = Math.min(target, 3.2 + Math.max(0, toRing - 7) * 0.5); // creep up to the roundabout, then round it
+      else if (c.u > pa.ringStart && c.u < pa.ringEnd) target = Math.min(target, 5.5);
+      if (toRing >= 7 && toRing < 24 && traffic.some((o, oi) => o !== c && o.active && Math.hypot(o.x - pa.entry.x, o.z - pa.entry.z) < 14 && (stage(o) === 1 || (stage(o) === 0 && (o.path.ringStart - o.u < toRing || (o.path.ringStart - o.u === toRing && oi < traffic.indexOf(c))))))) {
+        target = Math.min(target, Math.max(0, (toRing - 7) * 0.9)); // before the stop line (7 out) give way to a car on the roundabout, or to one that reaches the line first; past it, the car is committed
+      }
+      if (c.yaw != null) { // keep a gap to whatever is in front: the player, or a car in the same or a later stage of its trip
+        const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw), mine = stage(c);
         for (const o of [P, ...traffic]) {
-          if (o === c || (o !== P && !o.active)) continue;
+          if (o === c || (o !== P && (!o.active || (stage(o) < mine && o.path.ringStart - o.u >= 7) || (stage(o) > mine && o.path.from !== c.path.from && o.path.to !== c.path.to)))) continue; // only cars on my own stretch of road hold me up; the rest is the give-way rule
+
           const rx = o.x - c.x, rz = o.z - c.z, ahead = rx * fx + rz * fz;
           if (ahead > 0 && ahead < 11 && Math.abs(rx * fz - rz * fx) < 2.4) target = Math.min(target, Math.max(0, (ahead - 5.5) * 1.1));
         }
       }
       c.v += (target - c.v) * Math.min(1, dt * (target < c.v ? 3 : 1.5)); // brake harder than it accelerates
-      if (c.turn == null) {
-        c.s = Math.min(c.S.len - 1, c.s + c.dir * c.v * dt);
-        if (!c.leaving && toEnd - c.dir * c.v * dt <= 0) { if (c.dir > 0) c.leaving = true; else { c.turn = 0; c.sc = c.s; } }
-      }
-      c.grow = c.leaving ? c.grow - dt / 0.6 : Math.min(1, c.grow + dt / 0.6); // pulls in and out of the plaza end instead of popping
+      c.u = Math.min(pa.len, c.u + c.v * dt);
+      if (!c.leaving && pa.len - c.u < 1.2) c.leaving = true;
+      c.grow = c.leaving ? c.grow - dt / 0.6 : Math.min(1, c.grow + dt / 0.6); // pulls in and out at the road's end instead of popping
       if (c.leaving && c.grow <= 0) { Object.assign(c, { active: false, r: -2, x: 0, z: -500, v: 0, yaw: null }); c.group.visible = false; continue; }
-      let yaw;
-      if (c.turn == null) {
-        const q = atSmooth(c.S, c.s), off = LANE * c.dir;
-        c.x = q.p.x + q.n.x * off; c.z = q.p.z + q.n.z * off;
-        yaw = yawOf(q) + (c.dir > 0 ? 0 : Math.PI);
-      } else { // half a circle between the two lanes, centred on the road's own line
-        c.turn += (c.v * dt) / LANE;
-        const q = atSmooth(c.S, c.sc), ph = Math.min(c.turn, Math.PI), sn = Math.sin(ph), cs = Math.cos(ph);
-        c.x = q.p.x + q.tan.x * c.dir * LANE * sn + q.n.x * c.dir * LANE * cs;
-        c.z = q.p.z + q.tan.z * c.dir * LANE * sn + q.n.z * c.dir * LANE * cs;
-        yaw = Math.atan2(c.dir * (q.tan.x * cs - q.n.x * sn), c.dir * (q.tan.z * cs - q.n.z * sn));
-        if (c.turn >= Math.PI) { c.turn = null; c.dir = -c.dir; c.s = c.sc; }
-      }
+      const t = Math.min(1, c.u / pa.len);
+      pa.curve.getPointAt(t, pt); pa.curve.getTangentAt(t, tg);
+      c.x = pt.x; c.z = pt.z;
+      const yaw = Math.atan2(tg.x, tg.z);
       const rate = c.yaw == null ? 0 : wrapPi(yaw - c.yaw) / Math.max(dt, 1e-3);
-      c.steer += (Math.max(-1, Math.min(1, rate * 0.5)) - c.steer) * Math.min(1, dt * 8); // the front wheels follow the turn
+      c.steer += (Math.max(-1, Math.min(1, rate * 0.5)) - c.steer) * Math.min(1, dt * 8); // the front wheels follow the bend
       c.yaw = yaw;
       c.group.rotation.y = yaw;
       c.group.position.set(c.x, ROAD_Y - 0.01, c.z);
