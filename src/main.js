@@ -219,7 +219,7 @@ function updateCamera(dt) {
   ov += ((overviewOn ? 1 : 0) - ov) * smooth(2.5, dt);
   speedZoom += (Math.min(1, Math.abs(P.speed) / 15) * 0.16 - speedZoom) * smooth(2, dt);
   focus.lerp(driving && !overviewOn ? v.set(P.x, 0, P.z) : origin, smooth(3, dt));
-  const k = zoom * (1 + 0.95 * intro + speedZoom) * lerp(1, 2.3, ov);
+  const k = zoom * (1 + 0.95 * intro + speedZoom) * lerp(1, 2.3, ov) * lerp(wide ? 1 : 1.6, 1, intro); // portrait: see more road while driving
   topPos.set(focus.x + Math.sin(yaw) * 36 * k, 56 * k, focus.z + Math.cos(yaw) * 36 * k); // tilted enough to see the sides of buildings
 
   // chase view: low and behind the car
@@ -239,7 +239,7 @@ function updateCamera(dt) {
 
   // while the intro panel is up, centre the world in the space beside it
   offX += ((wide && !driving ? panel.offsetWidth / 2 : 0) - offX) * smooth(4, dt);
-  offY += ((!wide && !driving ? panel.offsetHeight / 2 : 0) - offY) * smooth(4, dt);
+  offY += ((!wide ? (driving ? -innerHeight * 0.1 : panel.offsetHeight / 2) : 0) - offY) * smooth(4, dt); // portrait: car above the pad while driving
   camera.setViewOffset(innerWidth, innerHeight, -offX, -offY, innerWidth, innerHeight);
   camera.updateProjectionMatrix();
   camera.updateMatrixWorld();

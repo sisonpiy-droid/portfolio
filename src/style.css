@@ -26,7 +26,7 @@ body.night {
 
 * { box-sizing: border-box; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* read by screen readers and search engines, not shown */
-html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); touch-action: manipulation; overscroll-behavior: none; -webkit-text-size-adjust: 100%; } /* no double-tap zoom, no pull-to-refresh while driving */
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 body { font: 400 15px/1.5 Manrope, system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); -webkit-tap-highlight-color: transparent; }
 button { font: inherit; color: inherit; cursor: pointer; }
@@ -237,7 +237,7 @@ body.modal::before { content: ""; position: fixed; inset: 0; z-index: 9; backgro
 #pad { display: none; }
 @media (pointer: coarse) {
   #pad { display: grid; position: fixed; z-index: 6; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); grid-template: 54px 54px / 54px 54px 54px; gap: 6px; }
-  #pad button { border: 0; border-radius: 14px; background: color-mix(in srgb, var(--surface) 92%, transparent); box-shadow: var(--shadow); color: var(--accent); touch-action: none; }
+  #pad button { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; border: 0; border-radius: 14px; background: color-mix(in srgb, var(--surface) 92%, transparent); box-shadow: var(--shadow); color: var(--accent); touch-action: none; }
   #pad [data-key=ArrowUp] { grid-area: 1 / 2; }
   #pad [data-key=ArrowLeft] { grid-area: 2 / 1; }
   #pad [data-key=ArrowDown] { grid-area: 2 / 2; }
@@ -370,4 +370,33 @@ body.no3d #loader { display: block; }
   #sheet section + section { margin-top: 24px; padding-top: 18px; }
   .case, .shot, .timeline li { break-inside: avoid; }
   #sheet .links a { background: none; padding: 0 12px 0 0; }
+}
+
+/* ---------- phones ---------- */
+.touchnote { display: none; margin: 0 0 8px; color: var(--muted); line-height: 1.5; }
+@media (pointer: coarse) {
+  .touchnote { display: block; }
+  .menu-card .keys { display: none; }
+  .row input { width: 52px; height: 32px; } /* easier to hit */
+  .row input::after { width: 26px; height: 26px; }
+  .row input:checked::after { transform: translateX(20px); }
+}
+@media (pointer: coarse) and (max-height: 520px) { /* a phone on its side: give the road back */
+  :root { --gutter: 10px; }
+  .chip { height: 40px; }
+  .icon { width: 44px; height: 44px; }
+  #mini { width: 92px; height: 92px; }
+  .nav { padding: 6px 12px 6px 6px; }
+  .nav-ico { width: 38px; height: 38px; }
+  .nav-txt b { font-size: 14px; }
+  #pad { grid-template: 44px 44px / 50px 50px 50px; gap: 5px; right: calc(12px + env(safe-area-inset-right)); }
+  .fab { width: 48px; height: 48px; bottom: calc(112px + env(safe-area-inset-bottom)); }
+  .fab svg { width: 24px; height: 24px; }
+  #boost { width: 120px; padding: 7px 10px 9px; bottom: calc(112px + env(safe-area-inset-bottom)); right: calc(var(--gutter) + 62px); }
+  #prompt { bottom: calc(12px + env(safe-area-inset-bottom)); left: 50%; }
+  #toast { top: calc(64px + env(safe-area-inset-top)); }
+  #sheet { padding: 22px 20px; max-height: calc(100dvh - 16px); }
+  .menu-card { max-height: calc(100dvh - 16px); overflow: auto; padding: 16px 20px; }
+  #bigmap { height: 150px; }
+  #auto { top: 64px; max-height: calc(100dvh - 76px); }
 }
