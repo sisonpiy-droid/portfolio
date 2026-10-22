@@ -32,7 +32,7 @@ renderer.domElement.addEventListener('webglcontextlost', (e) => { // the GPU dri
   noWorld('The 3D view stopped (the graphics driver reset). Reload to bring it back; everything else works.');
 });
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap; // three r186 dropped PCFSoftShadowMap and used this anyway
 renderer.toneMapping = THREE.NeutralToneMapping;
 stage.appendChild(renderer.domElement);
 const camera = new THREE.PerspectiveCamera(32, 1, 3, 900); // a nearer clip plane would cost depth precision and make the ground flicker

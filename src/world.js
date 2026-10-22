@@ -782,7 +782,7 @@ export function createWorld(places, opts = {}) {
     return { group, body, wheels, headMat, tailMat, paintMat: PAINT };
   };
 
-  /* ---------- car park, billboard, barrier, portal, turbines ---------- */
+  /* ---------- car park, billboard, barrier, turbines ---------- */
   const bayCar = (k, row) => ({ x: -39 + k * 2.4, z: row ? 52.6 : 43.4 });
   const occupied = new Set();
   for (const [k, row, c, kind] of [[1, 0, 0xc0392b, 'suv'], [2, 0, 0xe9edf2, 'van'], [5, 0, 0x2e7d5b, 'sedan'], [8, 0, 0x9aa3b2, 'hatch'], [0, 1, 0x274a8f, 'sedan'], [3, 1, 0x2b3038, 'suv'], [4, 1, 0xd9a441, 'hatch']]) {
@@ -828,28 +828,6 @@ export function createWorld(places, opts = {}) {
     obstacles.push({ x: q.x + gate.n.x * off, z: q.z + gate.n.z * off, r: 0.8 });
   }
 
-  const portalTex = tex(256, 256, (g, w) => {
-    const grad = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
-    grad.addColorStop(0, '#d8fbff'); grad.addColorStop(0.5, '#2bb6e8'); grad.addColorStop(1, '#173d9c');
-    g.fillStyle = grad; g.fillRect(0, 0, w, w);
-    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 8;
-    for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(w / 2, w / 2, 40 + i * 34, i, i + 3.2); g.stroke(); }
-  });
-  const portal = new THREE.Group();
-  const pa = stops.length > 1 ? (stops[0].a + stops[1].a) / 2 : 2.6; // in the wedge between the first two roads
-  const PORTAL = { x: Math.cos(pa) * 27, z: Math.sin(pa) * 27 };
-  portal.position.set(PORTAL.x, 0, PORTAL.z);
-  const swirl = new THREE.Mesh(new THREE.CircleGeometry(2.1, 32), new THREE.MeshBasicMaterial({ map: portalTex, side: THREE.DoubleSide }));
-  swirl.position.y = 2.6;
-  const frame = add(new THREE.TorusGeometry(2.3, 0.28, 10, 32), new THREE.MeshBasicMaterial({ color: 0x1b3a9a }), 0, 2.6, 0, portal, false);
-  portal.add(swirl);
-  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 40, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0x5be6ff, transparent: true, opacity: 0.25, side: THREE.DoubleSide, depthWrite: false }));
-  beam.position.y = 20;
-  portal.add(beam);
-  portal.rotation.y = 0.5;
-  scene.add(portal);
-  obstacles.push({ x: PORTAL.x, z: PORTAL.z, r: 2.8 });
-  blocked.push({ cx: PORTAL.x, cz: PORTAL.z, r: 7 });
 
   const turbines = [];
   for (const [x, z] of [[-36, -88], [-8, -94], [24, -90], [-70, -60]]) {
@@ -1653,8 +1631,6 @@ export function createWorld(places, opts = {}) {
     boat.position.y = 0.12 + Math.sin(time * 1.6) * 0.04;
     boat.rotation.z = Math.sin(time * 1.3) * 0.04;
     sail.rotation.y = Math.sin(time * 0.8) * 0.15;
-    swirl.rotation.z -= dt * 1.6;
-    frame.rotation.z += dt * 0.3;
     for (const c of clouds) { c.c.position.x += c.v * dt; if (c.c.position.x > 130) c.c.position.x = -130; }
     for (const s of stops) {
       const on = activeStop === s;
